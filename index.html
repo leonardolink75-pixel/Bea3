@@ -37,7 +37,7 @@ h2{font:500 22px 'Playfair Display',serif;margin:22px 0 10px}
 .m.pool{background:var(--pool);color:#1f2d2b;border-color:var(--pool)}.m.pool small{color:#2b4642}
 .m.gold{background:var(--gold);color:#2d2610;border-color:var(--gold)}.m.gold small{color:#4d4020}
 label{display:block;font-size:12px;color:var(--mut);margin:10px 0 4px}
-input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:400 15px Montserrat,sans-serif}
+input,select{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:400 15px Montserrat,sans-serif}
 input:focus,button:focus-visible{outline:2px solid var(--pool);outline-offset:1px}
 .row{display:flex;gap:10px}.row>*{flex:1}
 .btn{width:100%;margin-top:14px;padding:13px;border:0;border-radius:999px;background:var(--btn);color:var(--btnt);font:600 14px Montserrat,sans-serif;cursor:pointer}
@@ -74,6 +74,7 @@ header{position:relative}.hbk{position:absolute;top:14px;right:0;width:34px;heig
 .seg{position:relative;display:flex;border:1px solid var(--line);border-radius:999px;padding:3px;margin-bottom:12px}.pill{position:absolute;top:3px;bottom:3px;left:3px;width:calc(50% - 3px);border-radius:999px;background:var(--btn);transition:transform .38s cubic-bezier(.3,.8,.3,1)}.seg button{position:relative;z-index:1;flex:1;border:0;background:none;color:var(--ink);padding:9px;border-radius:999px;font:500 13px Montserrat,sans-serif;cursor:pointer;transition:color .3s}.seg button.on{color:var(--btnt)}
 .bt div{transition:width .55s cubic-bezier(.3,.8,.3,1)}.swap{animation:fi .45s ease-out}
 @media (prefers-reduced-motion:reduce){.pill,.bt div,.seg button{transition:none}.swap{animation:none}}
+.kv{display:flex;justify-content:space-between;padding:7px 0;border-top:1px dashed var(--line);font-size:13px}.kv:first-of-type{margin-top:6px}
 .waves{display:block;width:100%;height:54px;margin-top:6px}
 </style>
 </head>
@@ -101,9 +102,9 @@ header{position:relative}.hbk{position:absolute;top:14px;right:0;width:34px;heig
 <script>
 const KEY='bea_gestao_v1';
 let db={products:[],sales:[]},tab='resumo',sel={},disc={},draft={name:'',colors:'',sizes:'',buy:'',sell:'',q:{}};
-let rp=null,rq={},rn={c:'',s:'',p:'',q:{}},pf='',per='tudo',mon=new Date().toISOString().slice(0,7);
+let rp=null,rq={},rn={c:'',s:'',p:'',q:{}},pf='',per='tudo',vtab='nova',tr={},nmode='prod',sd={tipo:'Etiquetas',desc:'',valor:'',data:''},mon=(()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')})();
 try{const s=localStorage.getItem(KEY);if(s)db=JSON.parse(s)}catch(e){}
-function norm(){db.products=db.products||[];db.sales=db.sales||[];
+function norm(){db.products=db.products||[];db.sales=db.sales||[];db.saidas=db.saidas||[];
  if(!db.buys){db.buys=db.products.filter(p=>p.bought).map(p=>({id:p.id,pid:p.id,name:p.name,qty:p.bought,cost:p.buy*p.bought}))}}
 norm();
 const mk=ts=>{const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')};
@@ -127,10 +128,10 @@ function vResumo(){
  gasto=B.reduce((a,b)=>a+b.cost,0);
  const fat=S.reduce((a,s)=>a+s.rev,0),custo=S.reduce((a,s)=>a+s.cost,0),lucro=fat-custo,mg=fat?lucro/fat*100:0,qv=S.reduce((a,s)=>a+s.qty,0);
  const keys=[...PAYS,'Sem informação'],col={'Pix':'#7CA7A1','Dinheiro':'#C9A96B','Cartão débito':'#55633A','Cartão crédito':'#B58E6A','Sem informação':'#c9bfa9'};
- const isP=(x,k)=>k==='Sem informação'?!x.pay:x.pay===k;
- const bp=keys.map(k=>{const l=S.filter(x=>isP(x,k));return{k,n:l.length,v:l.reduce((a,x)=>a+x.rev,0)}}).filter(x=>x.n||PAYS.includes(x.k));
+ const isP=(x,k)=>k==='Sem informação'?(!x.pay&&!x.troca):x.pay===k;
+ const bp=keys.map(k=>{const l=S.filter(x=>isP(x,k));return{k,n:l.filter(x=>!x.troca).length,v:l.reduce((a,x)=>a+x.rev,0)}}).filter(x=>x.n||PAYS.includes(x.k));
  const fs=S.filter(x=>!pf||isP(x,pf)),fsum=fs.reduce((a,x)=>a+x.rev,0);
- const bars=fat?bp.map(({k,n,v})=>{const pc=Math.round(v/fat*100);return `<div class="bar" onclick="setPf('${k}')"><div class="bl"><span>${k}</span><b data-id="bv${keys.indexOf(k)}" data-k="r" data-v="${v}">${R(v)}</b></div><div class="bt"><div data-id="bw${keys.indexOf(k)}" data-w="${v?Math.max(pc,2):0}" style="width:${v?Math.max(pc,2):0}%;background:${col[k]}"></div></div><small>${n} venda(s) · ${pc}%</small></div>`}).join(''):'<div class="empty">O gráfico aparece depois da primeira venda.</div>';
+ const bars=fat?bp.map(({k,n,v})=>{const pc=Math.round(v/fat*100);return `<div class="bar" onclick="setPf('${k}')"><div class="bl"><span>${k}</span><b data-id="bv${keys.indexOf(k)}" data-k="r" data-v="${v}">${R(v)}</b></div><div class="bt"><div data-id="bw${keys.indexOf(k)}" data-w="${v>0?Math.max(pc,2):0}" style="width:${v>0?Math.max(pc,2):0}%;background:${col[k]}"></div></div><small>${n} venda(s) · ${pc}%</small></div>`}).join(''):'<div class="empty">O gráfico aparece depois da primeira venda.</div>';
  const chips=`<div class="chips" style="margin-bottom:6px"><button class="chip ${pf?'':'on'}" onclick="setPf('')">Todas</button>${bp.map(x=>`<button class="chip ${pf===x.k?'on':''}" onclick="setPf('${x.k}')">${x.k}</button>`).join('')}</div>${pf?`<div class="sum" style="margin:0 0 4px">${fs.length} venda(s) · faturamento <b>${R(fsum)}</b></div>`:''}`;
  const last=fs.slice().reverse().slice(0,8).map(s=>`<div class="sale"><div><b>${esc(s.name)}</b><br><small style="color:var(--mut)">${esc(s.items)}${s.disc?' · desconto '+R(s.disc):''}<br>${s.date}${s.pay?' · '+esc(s.pay):''}</small></div><div style="text-align:right">${R(s.rev)}<br><button class="link" onclick="undo(${s.id})">Desfazer</button></div></div>`).join('');
  return `<h2>Resumo</h2><div class="seg" id="seg"><span class="pill" style="transform:translateX(${per==='mes'?'100%':'0'})"></span><button class="${per==='tudo'?'on':''}" onclick="setPer('tudo')">Tudo</button><button class="${per==='mes'?'on':''}" onclick="setPer('mes')">Este mês</button></div>${per==='mes'?`<div class="sum" style="margin:-4px 0 10px;text-transform:capitalize">${mname(mk(Date.now()))}</div>`:''}<div class="grid">
@@ -171,9 +172,46 @@ function setPer(p){if(p===per)return;const old=per,prev={};
   if(e.dataset.w!==undefined){const to=+e.dataset.w;e.style.transition='none';e.style.width=(prev[id]??0)+'%';e.offsetWidth;e.style.transition='';e.style.width=to+'%';return}
   const to=+e.dataset.v,from=prev[id];if(from!==undefined&&from!==to)tween(e,from,to)});
  const lc=$('lastcard');if(lc)lc.classList.add('swap')}
+const DIAS_TROCA=10;
+const prod=id=>db.products.find(x=>x.id===id);
+function daysSince(ts){const a=new Date(ts),b=new Date();a.setHours(0,0,0,0);b.setHours(0,0,0,0);return Math.round((b-a)/864e5)}
+function remain(sale){return (sale.picked||[]).map(([i,n])=>{let r=n;db.sales.forEach(t=>{if(t.ref===sale.id)t.ret.picked.forEach(([j,m])=>{if(j===i)r-=m})});return[i,r]}).filter(x=>x[1]>0)}
+function vTrocas(){
+ const all=db.sales.filter(x=>!x.troca&&x.picked&&x.picked.length),ok=all.filter(x=>daysSince(x.id)<=DIAS_TROCA&&remain(x).length).reverse(),exp=all.filter(x=>daysSince(x.id)>DIAS_TROCA).length,hist=db.sales.filter(x=>x.troca).reverse().slice(0,5);
+ return `<h2>Trocas</h2><div class="sum" style="margin-top:-4px">Prazo de ${DIAS_TROCA} dias corridos a partir da data da venda.</div>`
+ +(ok.length?ok.map(x=>{const left=DIAS_TROCA-daysSince(x.id);return `<div class="card"><div class="ph"><div><h3>${esc(x.name)}</h3><div class="tag">${esc(x.items)}</div><div class="tag" style="color:var(--mut)">${x.date}${x.pay?' · '+esc(x.pay):''}<br>${left===0?'Último dia para troca':'Restam '+left+' dia(s) para troca'}</div></div><button class="btn" style="width:auto;margin:0;padding:10px 18px" onclick="openTroca(${x.id})">Trocar</button></div></div>`}).join(''):'<div class="card empty">Nenhuma venda dentro do prazo de troca.</div>')
+ +(exp?`<div class="sum">${exp} venda(s) fora do prazo de troca.</div>`:'')
+ +(hist.length?`<h2>Trocas realizadas</h2><div class="card">${hist.map(x=>`<div class="sale"><div><b>${esc(x.name)}</b><br><small style="color:var(--mut)">${esc(x.items)}<br>${x.date}${x.pay?' · '+esc(x.pay):''}</small></div><div style="text-align:right">${x.rev>0?'+'+R(x.rev):x.rev<0?'−'+R(-x.rev):'sem diferença'}<br><button class="link" onclick="undo(${x.id})">Desfazer</button></div></div>`).join('')}</div>`:'')}
+function openTroca(sid){const sale=db.sales.find(x=>x.id===sid),ps=db.products.filter(p=>p.v.some(x=>x.q>0));
+ tr={sid,ret:{},nw:{},pay:'',np:(ps.find(p=>p.id===sale.pid)||ps[0]||{}).id};
+ renderTroca();$('sheet').classList.add('on');$('sheetc').parentNode.scrollTop=0}
+function trStep(g,i,d,max){tr[g][i]=Math.max(0,Math.min(max,(tr[g][i]||0)+d));renderTroca()}
+function renderTroca(){
+ const sale=db.sales.find(x=>x.id===tr.sid),po=prod(sale.pid),rem=remain(sale),pn=prod(tr.np),ps=db.products.filter(p=>p.v.some(x=>x.q>0));
+ let nR=0,nN=0;Object.values(tr.ret).forEach(n=>nR+=n);Object.values(tr.nw).forEach(n=>nN+=n);
+ const retRev=nR*sale.rev/sale.qty,newRev=pn?nN*pn.sell:0,diff=Math.round((newRev-retRev)*100)/100,ready=nR>0&&nN>0;
+ const st=(g,i,v,max)=>`<div class="step"><button onclick="trStep('${g}',${i},-1,${max})" aria-label="menos">−</button><span>${v||0}</span><button onclick="trStep('${g}',${i},1,${max})" aria-label="mais">+</button></div>`;
+ $('sheetc').innerHTML=`<h2>Trocar peça</h2><div class="sum" style="margin:-6px 0 0">${esc(sale.name)} · vendido em ${sale.date}</div>
+ <label>Peça que volta para o estoque</label>${rem.map(([i,r])=>`<div class="var"><div>${po&&po.v[i]?esc(po.v[i].c)+' · <b>'+esc(po.v[i].s)+'</b>':'Variação '+(i+1)}<br><small style="color:var(--mut)">até ${r} un.</small></div>${st('ret',i,tr.ret[i],r)}</div>`).join('')}
+ <label for="tnp">Peça nova que sai do estoque</label>${ps.length?`<select id="tnp" onchange="tr.np=+this.value;tr.nw={};renderTroca()">${ps.map(p=>`<option value="${p.id}" ${p.id===tr.np?'selected':''}>${esc(p.name)} · ${R(p.sell)}</option>`).join('')}</select>`+(pn?pn.v.map((x,i)=>`<div class="var ${x.q?'':'zero'}"><div>${esc(x.c)} · <b>${esc(x.s)}</b><br><small style="color:var(--mut)">${x.q} disponível</small></div>${st('nw',i,tr.nw[i],x.q)}</div>`).join(''):''):'<div class="empty">Sem peças em estoque para a troca.</div>'}
+ ${ready?`<div class="sum">Peças devolvidas: <b>${R(retRev)}</b> · peças novas: <b>${R(newRev)}</b><br>${diff>0?'Cliente paga <b>'+R(diff)+'</b>':diff<0?'Devolver ao cliente <b>'+R(-diff)+'</b>':'Sem diferença de valor'}</div>`:''}
+ ${ready&&diff?`<label>Forma de pagamento da diferença</label><div class="chips">${PAYS.map(m=>`<button class="chip ${tr.pay===m?'on':''}" onclick="tr.pay='${m}';renderTroca()">${m}</button>`).join('')}</div>`:''}
+ <button class="btn gold" ${ready?'':'disabled style="opacity:.45"'} onclick="confirmTroca()">Confirmar troca</button>`}
+function confirmTroca(){
+ const sale=db.sales.find(x=>x.id===tr.sid),po=prod(sale.pid),pn=prod(tr.np);if(!sale||!pn)return;
+ const rets=Object.entries(tr.ret).filter(e=>e[1]>0).map(([i,n])=>[+i,n]),news=Object.entries(tr.nw).filter(e=>e[1]>0).map(([i,n])=>[+i,n]);
+ if(!rets.length||!news.length){toast('Escolha a peça devolvida e a peça nova');return}
+ const nR=rets.reduce((a,x)=>a+x[1],0),nN=news.reduce((a,x)=>a+x[1],0),retRev=nR*sale.rev/sale.qty,retCost=nR*sale.cost/sale.qty,newRev=nN*pn.sell,newCost=nN*pn.buy,diff=Math.round((newRev-retRev)*100)/100;
+ if(diff&&!tr.pay){toast('Escolha a forma de pagamento da diferença');return}
+ rets.forEach(([i,n])=>{if(po&&po.v[i])po.v[i].q+=n});news.forEach(([i,n])=>{pn.v[i].q-=n});
+ const lb=(p,l)=>l.map(([i,n])=>`${p&&p.v[i]?p.v[i].c+'/'+p.v[i].s:'peça'} ×${n}`).join(', ');
+ db.sales.push({id:Date.now(),troca:true,ref:sale.id,pid:pn.id,name:'Troca · '+sale.name+(pn.id!==sale.pid?' → '+pn.name:''),items:'Voltou: '+lb(po,rets)+' · Saiu: '+lb(pn,news),qty:nN-nR,disc:0,pay:diff?tr.pay:'',rev:diff,cost:newCost-retCost,date:new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'}),ret:{pid:sale.pid,picked:rets},nw:{pid:pn.id,picked:news}});
+ save();closeNovo();render();toast('Troca registrada')}
 function setPf(k){pf=pf===k?'':k;render()}
 function setPay(id,m){pay[id]=m;render()}
-function vVendas(){
+function setVt(t){vtab=t;render()}
+function vVendas(){return `<div class="chips" style="margin-top:18px"><button class="chip ${vtab==='nova'?'on':''}" onclick="setVt('nova')">Nova venda</button><button class="chip ${vtab==='trocas'?'on':''}" onclick="setVt('trocas')">Trocas</button></div>`+(vtab==='trocas'?vTrocas():vNova())}
+function vNova(){
  const ps=db.products.filter(p=>p.v.some(x=>x.q>0));
  if(!ps.length)return `<h2>Vendas</h2><div class="card empty">Nenhuma peça disponível para vender.<br>Cadastre ou reponha produtos na aba Estoque.</div>`;
  return `<h2>Nova venda</h2>`+ps.map(p=>{
@@ -193,7 +231,13 @@ function sell(id){const p=db.products.find(x=>x.id===id),s=sel[id]||{};let qty=0
  if(!qty)return;const gross=qty*p.sell,d=Math.min(num(disc[id]),gross);
  db.sales.push({id:Date.now(),pid:id,name:p.name,items:its.join(', '),picked,qty,disc:d,pay:pay[id],rev:gross-d,cost:qty*p.buy,date:new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})});
  sel[id]={};disc[id]='';pay[id]='';save();render();toast('Venda registrada')}
-function undo(id){const s=db.sales.find(x=>x.id===id),p=db.products.find(x=>x.id===s.pid);if(p)s.picked.forEach(([i,n])=>p.v[i].q+=n);db.sales=db.sales.filter(x=>x!==s);save();render();toast('Venda desfeita')}
+function undo(id){const s=db.sales.find(x=>x.id===id);if(!s)return;
+ if(db.sales.some(x=>x.ref===id)){toast('Desfaça a troca desta venda primeiro');return}
+ if(s.troca){const po=prod(s.ret.pid),pn=prod(s.nw.pid);
+  s.ret.picked.forEach(([i,n])=>{if(po&&po.v[i])po.v[i].q=Math.max(0,po.v[i].q-n)});
+  s.nw.picked.forEach(([i,n])=>{if(pn&&pn.v[i])pn.v[i].q+=n})}
+ else{const p=prod(s.pid);if(p)s.picked.forEach(([i,n])=>p.v[i].q+=n)}
+ db.sales=db.sales.filter(x=>x!==s);save();render();toast(s.troca?'Troca desfeita':'Venda desfeita')}
 function delP(id){if(!confirm('Excluir este produto e o estoque dele? As vendas já feitas continuam no resumo.'))return;db.products=db.products.filter(p=>p.id!==id);save();render()}
 
 function togRep(id){rp=rp===id?null:id;rn={c:'',s:'',p:'',q:{}};
@@ -219,26 +263,60 @@ function vMensal(){const t=stats(mon),meses=[...new Set([...db.sales,...db.buys]
  <div class="m gold"><small>Faturamento (${t.qv} vendidas)</small><b>${R(t.fat)}</b></div>
  <div class="m olive"><small>Lucro</small><b>${R(t.lucro)}</b></div>
  <div class="m"><small>Margem de lucro</small><b>${t.mg.toFixed(1).replace('.',',')}%</b></div></div>
- <div class="card" style="margin-top:12px"><div class="sum">Faturamento menos gasto no mês: <b>${R(t.fat-t.gasto)}</b></div></div>
+ ${caixa(mon,t)}
  <h2>Mês a mês</h2><div class="card" style="overflow-x:auto"><table><tr><th>Mês</th><th>Gasto</th><th>Faturou</th><th>Lucro</th></tr>${meses.map(m=>{const x=stats(m);return `<tr onclick="mon='${m}';render()" style="cursor:pointer"><td>${mname(m)}</td><td>${R(x.gasto)}</td><td>${R(x.fat)}</td><td>${R(x.lucro)}</td></tr>`}).join('')}</table></div>`}
 
 function vBackup(){return `<h2>Backup</h2><div class="card"><p style="margin-top:0">Seus dados ficam só neste navegador. Baixe um backup em .json para guardar com segurança ou levar para outro aparelho.</p>
- <div class="sum">${db.products.length} produto(s) · ${db.sales.length} venda(s) · ${db.buys.length} compra(s)</div>
+ <div class="sum">${db.products.length} produto(s) · ${db.sales.length} venda(s) · ${db.buys.length} compra(s) · ${db.saidas.length} saída(s)</div>
  <button class="btn" onclick="exportar()">Baixar backup (.json)</button>
  <label for="rf" style="margin-top:18px">Restaurar a partir de um arquivo de backup</label>
  <input id="rf" type="file" accept=".json,application/json" onchange="importar(this)">
  <p class="sum">Restaurar substitui todos os dados atuais pelos do arquivo.</p></div>`}
-async function exportar(){let dl=null;try{dl=await claude.use('downloads')}catch(e){}
- if(!dl){toast('Download indisponível aqui. Abra o app pelo link do artefato.');return}
- const f='bea-backup-'+new Date().toISOString().slice(0,10)+'.json';
- try{await dl.save({filename:f,data:JSON.stringify({app:'bea-gestao',v:1,exportado:new Date().toISOString(),db},null,2)});toast('Backup salvo')}catch(e){if(e&&e.code!=='declined')toast('Não foi possível salvar o backup')}}
+function blobDownload(nome,texto){
+ const blob=new Blob([texto],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+ a.href=url;a.download=nome;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1500)}
+async function exportar(){
+ const nome='bea-backup-'+new Date().toISOString().slice(0,10)+'.json',texto=JSON.stringify({app:'bea-gestao',v:1,exportado:new Date().toISOString(),db},null,2);
+ let dl=null;try{dl=await claude.use('downloads')}catch(e){}
+ if(dl){try{await dl.save({filename:nome,data:texto});toast('Backup salvo')}catch(e){if(e&&e.code==='declined')return;blobDownload(nome,texto);toast('Backup gerado')}return}
+ blobDownload(nome,texto);toast('Backup gerado. Veja sua pasta de downloads')}
 function importar(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();
  r.onload=()=>{try{const j=JSON.parse(r.result),d=j.db||j;if(!Array.isArray(d.products)||!Array.isArray(d.sales))throw 0;
   if(!confirm('Substituir os dados atuais por este backup ('+d.products.length+' produtos, '+d.sales.length+' vendas)?')){inp.value='';return}
   db=d;norm();sel={};disc={};rp=null;save();render();toast('Backup restaurado')}catch(e){toast('Arquivo inválido');inp.value=''}};
  r.readAsText(f)}
 
-function openNovo(){$('sheetc').innerHTML=vNovo();$('sheet').classList.add('on');grade()}
+const TIPOS=['Etiquetas','Sacolas','Brindes','Embalagens','Outros'];
+const hoje=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
+function novoHtml(){return `<div class="chips" style="margin:6px 44px 4px 0"><button class="chip ${nmode==='prod'?'on':''}" onclick="setNm('prod')">Produto</button><button class="chip ${nmode==='saida'?'on':''}" onclick="setNm('saida')">Saídas</button></div>`+(nmode==='saida'?vSaida():vNovo())}
+function setNm(m){nmode=m;$('sheetc').innerHTML=novoHtml();grade()}
+function openNovo(){setNm('prod');$('sheet').classList.add('on')}
+function openSaida(){if(!sd.data)sd.data=hoje();setNm('saida');$('sheet').classList.add('on')}
+function vSaida(){if(!sd.data)sd.data=hoje();return `<h2>Nova saída</h2><div class="card">
+ <label>Tipo</label><div class="chips">${TIPOS.map(t=>`<button class="chip ${sd.tipo===t?'on':''}" onclick="sd.tipo='${t}';setNm('saida')">${t}</button>`).join('')}</div>
+ <label for="sdd">Descrição (opcional)</label><input id="sdd" value="${esc(sd.desc)}" placeholder="Ex.: 500 etiquetas, sacolas kraft" oninput="sd.desc=this.value">
+ <div class="row"><div><label for="sdv">Valor (R$)</label><input id="sdv" inputmode="decimal" value="${esc(sd.valor)}" oninput="sd.valor=this.value"></div><div><label for="sdt">Data</label><input id="sdt" type="date" value="${esc(sd.data)}" oninput="sd.data=this.value"></div></div>
+ <button class="btn" onclick="addSaida()">Salvar saída</button></div>`}
+function addSaida(){const valor=num(sd.valor);if(!valor){toast('Informe o valor da saída');return}
+ let ts=new Date((sd.data||hoje())+'T12:00:00').getTime();if(isNaN(ts))ts=Date.now();
+ db.saidas.push({id:Date.now(),ts,tipo:sd.tipo,desc:sd.desc.trim(),valor});
+ sd={tipo:sd.tipo,desc:'',valor:'',data:''};save();closeNovo();render();toast('Saída registrada · veja em Mensal')}
+function delSaida(id){if(!confirm('Excluir esta saída?'))return;db.saidas=db.saidas.filter(x=>x.id!==id);save();render();toast('Saída excluída')}
+function caixa(m,t){
+ const sdm=db.saidas.filter(x=>mk(x.ts)===m),outras=sdm.reduce((a,x)=>a+x.valor,0),saidas=t.gasto+outras,saldo=t.fat-saidas,bt={};
+ sdm.forEach(x=>bt[x.tipo]=(bt[x.tipo]||0)+x.valor);
+ const mv=[...db.sales.filter(x=>mk(x.id)===m).map(x=>({ts:x.id,l:x.name,s:(x.troca?'Troca':'Venda')+(x.pay?' · '+x.pay:''),v:x.rev})),
+  ...db.buys.filter(x=>mk(x.id)===m).map(x=>({ts:x.id,l:'Compra de peças',s:x.name+' · '+x.qty+' peça(s)',v:-x.cost})),
+  ...sdm.map(x=>({ts:x.ts,l:x.tipo,s:x.desc||'Saída',v:-x.valor,del:x.id}))].sort((a,b)=>b.ts-a.ts);
+ const kv=(a,b)=>`<div class="kv"><span>${esc(a)}</span><b>${R(b)}</b></div>`;
+ return `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px"><h2>Controle de caixa</h2><button class="chip" onclick="openSaida()">+ Saída</button></div>
+ <div class="grid"><div class="m olive"><small>Entradas (vendas)</small><b>${R(t.fat)}</b></div>
+ <div class="m pool"><small>Saídas (peças + outras)</small><b>${R(saidas)}</b></div>
+ <div class="m gold"><small>Saldo do caixa</small><b style="${saldo<0?'color:#7a2a20':''}">${R(saldo)}</b></div>
+ <div class="m"><small>Lucro após saídas extras</small><b style="color:${t.lucro-outras<0?'#b5473a':'var(--gtxt)'}">${R(t.lucro-outras)}</b></div></div>
+ <div class="card" style="margin-top:12px"><b>Saídas do mês</b>${kv('Peças compradas',t.gasto)}${Object.entries(bt).map(([k,v])=>kv(k,v)).join('')}<div class="kv"><span><b>Total</b></span><b>${R(saidas)}</b></div></div>
+ <div class="card"><b>Movimentações</b>${mv.length?mv.slice(0,40).map(x=>`<div class="sale"><div><b>${esc(x.l)}</b><br><small style="color:var(--mut)">${new Date(x.ts).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})} · ${esc(x.s)}</small></div><div style="text-align:right;color:${x.v<0?'#b5473a':'var(--gtxt)'}">${x.v<0?'−':'+'}${R(Math.abs(x.v))}${x.del?`<br><button class="link" onclick="delSaida(${x.del})">Excluir</button>`:''}</div></div>`).join('')+(mv.length>40?'<div class="sum">Mostrando as 40 mais recentes.</div>':''):'<div class="empty">Nenhuma movimentação neste mês.</div>'}</div>`}
 function closeNovo(){const e=$('sheet');if(!e.classList.contains('on')||e.classList.contains('out'))return;e.classList.add('out');setTimeout(()=>e.classList.remove('on','out'),220)}
 document.addEventListener('keydown',e=>{if(e.key==='Escape')closeNovo()});
 function vNovo(){const d=draft;return `<h2>Novo produto</h2><div class="card">
